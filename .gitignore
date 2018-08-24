@@ -1,0 +1,7 @@
+.ipynb_checkpoints/
+geckodriver.log
+*.log
+__pycache__/
+datasets/
+*.out
+*.zip
