@@ -1,17 +1,21 @@
 
-from pyspark import SparkConf, SparkContext
 import re
 from io import BytesIO
 from boto3 import resource
 from zipfile import ZipFile
+from datetime import datetime
 
-import pandas as pd
-from pyspark.sql import SparkSession
+from pyspark import SparkConf, SparkContext
+from pyspark.sql import SQLContext
+from pyspark.sql.types import Row, StructField, StructType, StringType, DateType, IntegerType
 
+import findspark
+findspark.init()
 
-spark = SparkSession.builder.appName("transport").getOrCreate()
+conf = SparkConf().setMaster("local[4]").setAppName("transport")
+sc = SparkContext(conf=conf)
+
 bucket_name = "dtpm-transactions"
-
 s3 = resource("s3")
 bucket = s3.Bucket(bucket_name)
 
@@ -65,13 +69,16 @@ type(csv)
 csv[:100]
 len(csv.split('\n'))
 
-spark.stop()
-conf = SparkConf().setMaster("local[4]").setAppName("transport")
-sc = SparkContext(conf=conf)
 
-df_2 = sc.parallelize(csv)
+df_2 = sc.parallelize(csv).map(lambda a: a.split(";")[:-1])
 sc
 df_2 = df_2.map(lambda a: a.split(";"))
 type(df_2)
 print(df_2.toDebugString().decode())
 df_2.take(5)
+sc.stop()
+findspark.init()
+df_2.take(5)
+
+
+sc.stop()
