@@ -1,16 +1,35 @@
+
+from io import BytesIO
 import json
 import boto3
+from zipfile import ZipFile
+import pandas as pd
+import re
 
 print('++Loading function++')
 
 
 def lambda_handler(event, context):
-    # Get the object from the event and show its content type
-    print("event[object]=" + json.dumps(event['object'], indent=4, sort_keys=True))
     event = event['Records'][0]['s3']
+    print("event[object]=" + json.dumps(event['object'], indent=4, sort_keys=True))
 
+    # Retrieve object
     s3 = boto3.client('s3')
-    zip_file = s3.get_object(Bucket=event['bucket']['name'], Key=event['object']['key'])
+    response = s3.get_object(Bucket=event['bucket']['name'], Key=event['object']['key'])
+    dataset = response['Body'].read()
+
+    # Decompress .zip and load trxs as DataFrame
+    with BytesIO(dataset) as tf:
+        tf.seek(0)
+        # Read the file as a zipfile and process the members
+        with ZipFile(tf, mode='r') as zipf:
+            files = [(name, load_trx(zipf.read(name))) for name in zipf.namelist()]
+
+        # Save as parquet
+        for file in files:
+            file_name = event['object']['key'] + file[0]
+            print("Saving %s..." % file_name)
+            to_s3(df=file[1], bucket_name=event['bucket']['name'], file_name=file_name)
 
 
 def load_trx(csv):
@@ -80,7 +99,7 @@ if __name__ == '__main__':
                         "arn": "arn:aws:s3:::example-bucket"
                     },
                     "object": {
-                        "key": "test-lambda/download_trx.log",
+                        "key": "test-lambda/20180818.zip",
                         "size": 1024,
                         "eTag": "0123456789abcdef0123456789abcdef",
                         "sequencer": "0A1B2C3D4E5F678901"
