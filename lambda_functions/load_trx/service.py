@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
-from io import StringIO
+from io import BytesIO
 import boto3
 import re
 
@@ -23,10 +23,9 @@ def load_trx(csv):
         'NOMBRESITIO': 'object',
         'NROTARJETA': 'object'
     }
-    # df = pd.read_csv(BytesIO(csv), sep=";", encoding="cp1252",
-    #                 usecols=[i for i in range(6)], dtype=dtype)
-    df = pd.read_csv(StringIO(csv), sep=";", encoding="cp1252",
+    df = pd.read_csv(BytesIO(csv), sep=";", encoding="cp1252",
                      usecols=[i for i in range(6)], dtype=dtype)
+
     df["FECHAHORATRX"] = pd.to_datetime(
         df["FECHAHORATRX"], format="%d/%m/%Y %H:%M:%S", errors='coerce')
     df.columns = [x.lower() for x in df.columns]
