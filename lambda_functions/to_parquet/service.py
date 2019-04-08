@@ -33,10 +33,12 @@ def to_parquet(bucket_name, object_key):
             for file_name in zipf.namelist():
 
                 # Process .csv file
+                print("Load %s file..." % file_name)
                 csv = zipf.read(file_name)
-                file_name = object_key + "/" + file_name
-                print("Saving %s file..." % file_name)
-                to_s3(csv=csv, bucket_name=bucket_name, file_name=file_name)
+                # file_name = object_key + "/" + file_name
+                # print("Saving %s file..." % file_name)
+                # to_s3(csv=csv, bucket_name=bucket_name, file_name=file_name)
+                del csv
 
 
 def load_trx(csv):
