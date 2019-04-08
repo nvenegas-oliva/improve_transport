@@ -2,7 +2,7 @@ region: us-east-1
 
 function_name: load_trx
 handler: service.handler
-description: My first lambda function
+description: Load transactions as parquet in S3
 runtime: python3.6
 role: package_lambda
 
