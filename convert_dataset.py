@@ -1,8 +1,7 @@
 
-import sys
 import os
 from io import BytesIO
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipfile
 from datetime import datetime
 import re
 import argparse
@@ -12,7 +11,7 @@ from pyspark.sql import SQLContext
 
 
 def build_filename(raw_name):
-    day, from_day, to_day = re.findall(r'\d+', raw_name)
+    day, from_day, to_day = re.findall(r"[\d+]{8}", raw_name)
     return "day=%s/from=%s/to=%s" % (day, from_day, to_day)
 
 
@@ -26,9 +25,8 @@ def extract_files(compressed_name, stream):
         try:
             with ZipFile(tf, mode='r') as zipf:
                 return [(build_filename(compressed_name + file_name), zipf.read(file_name)) for file_name in zipf.namelist()]
-        except:
+        except BadZipfile:
             return []
-
 # datetime.strptime(row[0], "%d/%m/%Y %H:%M:%S")
 
 
@@ -53,11 +51,11 @@ def main(args):
         input_path = "datasets/test-folder.small/*.zip"
         output_path = "./"
     elif args.environment == "cloud":
-        input_path = "s3n://dtpm-transactions/test-folder.small/*.zip"
+        input_path = "s3n://dtpm-transactions/test-folder-small/*.zip"
         output_path = "s3n://dtpm-transactions/parquet/"
 
     rdd = sc.binaryFiles(input_path).flatMap(lambda a: extract_files(a[0], a[1]))
-
+    print("rdd.count()=%d" % rdd.count())
     # Decode bytes and convert it in a list of strings
     rdd = rdd.mapValues(lambda file: BytesIO(file).read().decode('cp1252').split('\n'))
 
@@ -88,8 +86,28 @@ def main(args):
 
 
 if __name__ == "__main__":
+
+    """conf = SparkConf().setMaster("local[4]").setAppName("transport")
+    sc = SparkContext(conf=conf)
+
+    # sc._jsc.hadoopConfiguration().set("fs.s3n.awsAccessKeyId", "AKIAI6YJJLTG7TUBMVXA")
+    # sc._jsc.hadoopConfiguration().set("fs.s3n.awsSecretAccessKey", "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")
+
+    sqlContext = SQLContext(sc)
+
+    input_path = "s3n://dtpm-transactions/test-folder-small/*.zip"
+    # output_path = "s3://dtpm-transactions/parquet/"
+    rdd = sc.binaryFiles(input_path)
+    rdd.collect()
+    print("rdd.count()=%d" % rdd.count())"""
+
     parser = argparse.ArgumentParser()
     parser.add_argument("environment", help="'cloud' or 'local'")
     args = parser.parse_args()
-    print(args.environment)
+    print("args.environment=" + args.environment)
     main(args)
+
+    """input_path = "s3n://dtpm-transactions/test-folder-small/*.zip"
+    rdd = sc.binaryFiles(input_path).flatMap(lambda a: extract_files(a[0], a[1]))
+    rdd.collect()
+    print("rdd.count()=%d" % rdd.count())"""
