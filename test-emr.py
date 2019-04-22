@@ -26,8 +26,10 @@ def extract_files(compressed_name, stream):
 
 conf = SparkConf()
 sc = SparkContext(conf=conf)
-
+"""
 input_path = "s3n://dtpm-transactions/test-folder-small/*.zip"
 rdd = sc.binaryFiles(input_path).flatMap(lambda a: extract_files(a[0], a[1]))
 rdd.collect()
 print("rdd.count()=%d" % rdd.count())
+"""
+print(sc._conf.getAll())
