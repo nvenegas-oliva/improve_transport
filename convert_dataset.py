@@ -42,20 +42,20 @@ def prepare_csv(file_name, table):
 
 
 def main(args):
-    conf = SparkConf().setMaster("local[4]").setAppName("transport")
+    conf = SparkConf()
     sc = SparkContext(conf=conf)
 
     sqlContext = SQLContext(sc)
 
     if args.environment == "local":
-        input_path = "datasets/test-folder.small/*.zip"
+        input_path = "datasets/test-folder/*.zip"
         output_path = "./"
     elif args.environment == "cloud":
-        input_path = "s3n://dtpm-transactions/test-folder-small/*.zip"
+        input_path = "s3n://dtpm-transactions/test-folder/*.zip"
         output_path = "s3n://dtpm-transactions/parquet/"
 
     rdd = sc.binaryFiles(input_path).flatMap(lambda a: extract_files(a[0], a[1]))
-    print("rdd.count()=%d" % rdd.count())
+
     # Decode bytes and convert it in a list of strings
     rdd = rdd.mapValues(lambda file: BytesIO(file).read().decode('cp1252').split('\n'))
 
@@ -74,7 +74,7 @@ def main(args):
               'NROTARJETA']
     header = list(map(lambda a: a.lower(), header))
 
-    df = rdd.toDF(header)
+    df = rdd.toDF(header).repartition(3000)
 
     days = [file.file_name for file in df.select('file_name').distinct().collect()]
 
