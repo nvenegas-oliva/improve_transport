@@ -1,8 +1,8 @@
 
+import os
 from io import BytesIO
 import argparse
 from zipfile import ZipFile, BadZipfile
-from datetime import datetime
 import re
 import pandas as pd
 
@@ -13,7 +13,7 @@ def build_filename(raw_name):
 
 
 def main(args):
-
+    BUCKET = "dtpm-transactions"
     if args.environment == "local":
         input_path = "datasets/test-folder/*.zip"
         output_path = "./"
@@ -22,8 +22,34 @@ def main(args):
         output_path = "s3n://dtpm-transactions/parquet/"
 
 
+def convert_dataset(dataset, bucket):
+    """
+    Convert dataset (stream) to parquet.
+    """
+    output_path = "parquet"
+
+    # Decompress file
+    try:
+        with ZipFile(dataset, mode='r') as zipf:
+            decompressed_file = [(
+                # (file_name, DataFrame)
+                build_filename(path + file_name), create_df(zipf.read(file_name))
+            ) for file_name in zipf.namelist()]
+    except BadZipfile:
+        print("BadZipfile")
+
+    # Write in parquet all sub-files.
+    for file_name, df in decompressed_file:
+        df.to_parquet("s3://%s/%s/%s/data.parquet" %
+                      (bucket, output_path, file_name),
+                      compression="gzip",
+                      engine="fastparquet")
+
+
 def create_df(decompressed_file):
-    """Generate a pandas DataFrame from a .csv compressed file"""
+    """
+    Generate a pandas DataFrame from a .csv compressed file.
+    """
     dtype = {
         'CODIGOENTIDAD': 'int64',
         'NOMBREENTIDAD': 'str',
@@ -42,6 +68,7 @@ def create_df(decompressed_file):
         return None
     df["FECHAHORATRX"] = pd.to_datetime(
         df["FECHAHORATRX"], format="%d/%m/%Y %H:%M:%S", errors='coerce')
+    df.columns = [x.lower() for x in df.columns]
     return df
 
 
@@ -53,11 +80,14 @@ if __name__ == "__main__":
     print("args.environment=" + args.environment)
     main(args)
     path = "datasets/20181103.zip"
-    try:
-        with ZipFile(path, mode='r') as zipf:
-            decompressed_file = [(file_name, create_df(zipf.read(file_name)))
-                                 for file_name in zipf.namelist()]
-    except BadZipfile:
-        print("BadZipfile")
+
     list(map(lambda a: a[0], decompressed_file))
     decompressed_file[0][1].info()
+
+    if not os.path.exists(decompressed_file[0][0]):
+        os.makedirs(decompressed_file[0][0])
+
+    decompressed_file[0][1].to_parquet("%s/data.parquet" %
+                                       decompressed_file[0][0], compression="gzip", engine="fastparquet")
+
+    help(decompressed_file[0][1].to_parquet)
