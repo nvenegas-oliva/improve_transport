@@ -44,6 +44,7 @@ def prepare_csv(file_name, table):
 def main(args):
     conf = SparkConf()
     sc = SparkContext(conf=conf)
+    print(sc._conf.getAll())
 
     sqlContext = SQLContext(sc)
 
@@ -74,15 +75,18 @@ def main(args):
               'NROTARJETA']
     header = list(map(lambda a: a.lower(), header))
 
-    df = rdd.toDF(header).repartition(3000)
-
+    df = rdd.toDF(header)
+    print("df.rdd.getNumPartitions()=%d" % df.rdd.getNumPartitions())
+    df = df.repartition(100)
+    print("df.rdd.getNumPartitions()=%d" % df.rdd.getNumPartitions())
+    print("df.count()=%d" % df.count())
     days = [file.file_name for file in df.select('file_name').distinct().collect()]
-
-    for directory in days:
+    print("days=%s" % days)
+    """for directory in days:
         if not os.path.exists(directory):
             os.makedirs(directory)
         df_day = df.select(df.columns[1:]).where(df.file_name == directory)
-        df_day.write.parquet(output_path + directory + "/data.parquet", compression="gzip")
+        df_day.write.parquet(output_path + directory + "/data.parquet", compression="gzip")"""
 
 
 if __name__ == "__main__":
