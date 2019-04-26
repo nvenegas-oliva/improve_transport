@@ -1,9 +1,10 @@
 
 import os
-from io import BytesIO
+from io import BytesIO, StringIO
 import argparse
 from zipfile import ZipFile, BadZipfile
 import re
+from boto3 import resource
 import pandas as pd
 
 
@@ -21,8 +22,19 @@ def main(args):
         input_path = "s3n://dtpm-transactions/test-folder/*.zip"
         output_path = "s3n://dtpm-transactions/parquet/"
 
+    path = "datasets/20180818.zip"
+    s3 = resource("s3")
+    bucket = s3.Bucket(BUCKET)
+    obj = bucket.Object("test-folder-small/20180818.zip")
+    obj.key
+    with BytesIO(obj.get()["Body"].read()) as stream:
+        # rewind the file
+        stream.seek(0)
+        convert_dataset(stream, obj.key, BUCKET)
 
-def convert_dataset(dataset, bucket):
+
+@profile
+def convert_dataset(dataset, file_name, bucket):
     """
     Convert dataset (stream) to parquet.
     """
@@ -30,20 +42,21 @@ def convert_dataset(dataset, bucket):
 
     # Decompress file
     try:
+
         with ZipFile(dataset, mode='r') as zipf:
-            decompressed_file = [(
+            decompressed_file = [
                 # (file_name, DataFrame)
-                build_filename(path + file_name), create_df(zipf.read(file_name))
-            ) for file_name in zipf.namelist()]
+                (build_filename(file_name + sub_file), create_df(zipf.read(sub_file))
+                 ) for sub_file in zipf.namelist()]
     except BadZipfile:
         print("BadZipfile")
 
     # Write in parquet all sub-files.
     for file_name, df in decompressed_file:
-        df.to_parquet("s3://%s/%s/%s/data.parquet" %
-                      (bucket, output_path, file_name),
-                      compression="gzip",
-                      engine="fastparquet")
+        output_dir = "s3://%s/%s/%s/data.parquet" % (bucket, output_path, file_name)
+        print("output_dir = %s" % output_dir)
+        print(df.info())
+        df.to_parquet(output_dir, compression="gzip", engine="pyarrow")
 
 
 def create_df(decompressed_file):
