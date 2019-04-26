@@ -25,7 +25,7 @@ def main(args):
         output_path = "s3n://dtpm-transactions/parquet/"
 
     # Get list of files to transform
-    file = "test-folder-small/20180818.zip"
+    file = "test-folder/20190410.zip"
     s3 = resource("s3")
     obj = s3.Bucket(BUCKET).Object(file)
     with BytesIO(obj.get()["Body"].read()) as stream:
@@ -57,6 +57,7 @@ def convert_dataset(dataset, file_name, bucket):
         df.to_parquet(output_dir, compression="gzip", engine="pyarrow")
 
 
+@profile
 def create_df(decompressed_file):
     """
     Generate a pandas DataFrame using the correct format.
