@@ -1,5 +1,4 @@
 
-import os
 from io import BytesIO
 import argparse
 from zipfile import ZipFile, BadZipfile
@@ -25,13 +24,12 @@ def main(args):
         input_path = "s3n://dtpm-transactions/test-folder/*.zip"
         output_path = "s3n://dtpm-transactions/parquet/"
 
-    path = "datasets/20180818.zip"
+    # Get list of files to transform
+    file = "test-folder-small/20180818.zip"
     s3 = resource("s3")
-    bucket = s3.Bucket(BUCKET)
-    obj = bucket.Object("test-folder-small/20180818.zip")
-    obj.key
+    obj = s3.Bucket(BUCKET).Object(file)
     with BytesIO(obj.get()["Body"].read()) as stream:
-        # rewind the file
+        # Rewind the file
         stream.seek(0)
         convert_dataset(stream, obj.key, BUCKET)
 
@@ -89,15 +87,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print("args.environment=" + args.environment)
     main(args)
-    path = "datasets/20181103.zip"
-
-    list(map(lambda a: a[0], decompressed_file))
-    decompressed_file[0][1].info()
-
-    if not os.path.exists(decompressed_file[0][0]):
-        os.makedirs(decompressed_file[0][0])
-
-    decompressed_file[0][1].to_parquet("%s/data.parquet" %
-                                       decompressed_file[0][0], compression="gzip", engine="fastparquet")
-
-    help(decompressed_file[0][1].to_parquet)
