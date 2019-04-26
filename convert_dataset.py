@@ -1,6 +1,6 @@
 
 import os
-from io import BytesIO, StringIO
+from io import BytesIO
 import argparse
 from zipfile import ZipFile, BadZipfile
 import re
@@ -9,6 +9,9 @@ import pandas as pd
 
 
 def build_filename(raw_name):
+    """
+    Build file name using dates in raw_name.
+    """
     day, from_day, to_day = re.findall(r"[\d+]{8}", raw_name)
     return "day=%s/from=%s/to=%s" % (day, from_day, to_day)
 
@@ -36,13 +39,12 @@ def main(args):
 @profile
 def convert_dataset(dataset, file_name, bucket):
     """
-    Convert dataset (stream) to parquet.
+    Convert dataset (from stream) to DataFrame and save as .parquet in s3.
     """
     output_path = "parquet"
 
     # Decompress file
     try:
-
         with ZipFile(dataset, mode='r') as zipf:
             decompressed_file = [
                 # (file_name, DataFrame)
@@ -54,14 +56,12 @@ def convert_dataset(dataset, file_name, bucket):
     # Write in parquet all sub-files.
     for file_name, df in decompressed_file:
         output_dir = "s3://%s/%s/%s/data.parquet" % (bucket, output_path, file_name)
-        print("output_dir = %s" % output_dir)
-        print(df.info())
         df.to_parquet(output_dir, compression="gzip", engine="pyarrow")
 
 
 def create_df(decompressed_file):
     """
-    Generate a pandas DataFrame from a .csv compressed file.
+    Generate a pandas DataFrame using the correct format.
     """
     dtype = {
         'CODIGOENTIDAD': 'int64',
@@ -70,15 +70,12 @@ def create_df(decompressed_file):
         'NOMBRESITIO': 'str',
         'NROTARJETA': 'str'
     }
-    try:
-        df = pd.read_csv(
-            BytesIO(decompressed_file),
-            encoding="cp1252",
-            sep=";",
-            usecols=range(6),
-            dtype=dtype)
-    except:
-        return None
+    df = pd.read_csv(
+        BytesIO(decompressed_file),
+        encoding="cp1252",
+        sep=";",
+        usecols=range(6),
+        dtype=dtype)
     df["FECHAHORATRX"] = pd.to_datetime(
         df["FECHAHORATRX"], format="%d/%m/%Y %H:%M:%S", errors='coerce')
     df.columns = [x.lower() for x in df.columns]
