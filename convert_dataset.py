@@ -89,10 +89,20 @@ def get_datasets(bucket):
     """
     logger.debug("Generating dataset list")
     s3 = resource("s3")
+    bucket = "dtpm-transactions"
 
-    datasets = [obj.key for obj in s3.Bucket(bucket).objects.all()
-                if bool(re.match(r"^[0-9]*.zip", obj.key))]
-    logger.debug("datasets=%s" % datasets)
+    zip_files = [obj.key[:8] for obj in s3.Bucket(bucket).objects.all()
+                 if bool(re.match(r"^[0-9]*.zip", obj.key))]
+
+    parquet_files = [obj.key[12:20] for obj in s3.Bucket(bucket).objects.all()
+                     if bool(re.match(r"^parquet+", obj.key))]
+
+    # Include the last obj downloaded to download.
+    datasets = [parquet_files[-1]] + list(set(zip_files) - set(parquet_files))
+    datasets = list(map(lambda a: "%s.zip" % a, datasets))
+    datasets.sort()
+
+    logger.info("To download: %s" % "\n".join(datasets))
     return datasets
 
 
