@@ -33,27 +33,25 @@ def convert_dataset(dataset, file_name, bucket):
     Convert dataset (from stream) to DataFrame and save as .parquet in s3.
     """
     output_path = "parquet"
-    logger.debug("Converting %s" % file_name)
+    logger.debug("Unzipping %s" % file_name)
     # Decompress file
     try:
-        decompressed_file = []
         with ZipFile(dataset, mode='r') as zipf:
             for sub_file in zipf.namelist():
+                output_dir = "s3://%s/%s/%s/data.parquet" % (bucket, output_path, file_name)
+
                 logger.debug("Processing subfile %s" % sub_file)
-                # Add (file_name, df)
-                decompressed_file.append((
-                    build_filename(file_name + sub_file),
-                    create_df(zipf.read(sub_file))
-                ))
+                df = create_df(zipf.read(sub_file))
+
+                logger.debug("Saving %s" % output_dir)
+                df.to_parquet(output_dir, compression="gzip", engine="fastparquet")
 
     except BadZipfile:
         # logging.error("Exception occurred", exc_info=True)
         logging.error("Bad ZipFile")
     else:
-        # Write in parquet all sub-files.
-        for file_name, df in decompressed_file:
-            output_dir = "s3://%s/%s/%s/data.parquet" % (bucket, output_path, file_name)
-            df.to_parquet(output_dir, compression="gzip", engine="fastparquet")
+        # Remove compressed file from memory.
+        del dataset
 
 
 @profile
@@ -78,6 +76,10 @@ def create_df(decompressed_file):
         df["FECHAHORATRX"], format="%d/%m/%Y %H:%M:%S", errors='coerce')
     df.columns = [x.lower() for x in df.columns]
     return df
+
+
+def get_datasets():
+    s3 = resource("s3")
 
 
 @profile
