@@ -38,7 +38,12 @@ def convert_dataset(dataset, file_name, bucket):
     try:
         with ZipFile(dataset, mode='r') as zipf:
             for sub_file in zipf.namelist():
-                output_dir = "s3://%s/%s/%s/data.parquet" % (bucket, output_path, file_name)
+
+                output_dir = "s3://%s/%s/%s/data.parquet" % (
+                    bucket,
+                    output_path,
+                    build_filename(file_name + sub_file)
+                )
 
                 logger.debug("Processing subfile %s" % sub_file)
                 df = create_df(zipf.read(sub_file))
@@ -104,13 +109,13 @@ def main(args):
     # Get list of files to transform
     # file = "test-folder-small/20180818.zip"  # Small file
     # file = "test-folder-small/20181011.zip"  # Zip error file
-    file = "20181103.zip"  # Big file
+    # file = "20181103.zip"  # Big file
 
     s3 = resource("s3")
-    obj = s3.Bucket(BUCKET).Object(file)
 
     for dataset in get_datasets(BUCKET):
         logger.debug("Retrieving object s3://%s/%s" % (BUCKET, dataset))
+        obj = s3.Bucket(BUCKET).Object(dataset)
         with BytesIO(obj.get()["Body"].read()) as stream:
             logger.debug("Object retrieved")
             # Rewind the file
