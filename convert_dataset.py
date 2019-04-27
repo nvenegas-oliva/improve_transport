@@ -11,8 +11,8 @@ import pandas as pd
 # Set different levels of logging
 logging.basicConfig(
     level=logging.ERROR,
-    # filename='app.log',
-    filemode='w',
+    filename='app.log',
+    filemode='a',
     format='[%(name)s] [%(levelname)s] [%(asctime)s] - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def build_filename(raw_name):
     return "day=%s/from=%s/to=%s" % (day, from_day, to_day)
 
 
-@profile
+# @profile
 def convert_dataset(dataset, file_name, bucket):
     """
     Convert dataset (from stream) to DataFrame and save as .parquet in s3.
@@ -54,7 +54,7 @@ def convert_dataset(dataset, file_name, bucket):
         del dataset
 
 
-@profile
+# @profile
 def create_df(decompressed_file):
     """
     Generate a pandas DataFrame using the correct format.
@@ -78,11 +78,20 @@ def create_df(decompressed_file):
     return df
 
 
-def get_datasets():
+def get_datasets(bucket):
+    """
+    Generate a list of datasets to download.
+    """
+    logger.debug("Generating dataset list")
     s3 = resource("s3")
 
+    datasets = [obj.key for obj in s3.Bucket(bucket).objects.all()
+                if bool(re.match(r"^[0-9]*.zip", obj.key))]
+    logger.debug("datasets=%s" % datasets)
+    return datasets
 
-@profile
+
+# @profile
 def main(args):
     BUCKET = "dtpm-transactions"
     if args.environment == "local":
@@ -100,12 +109,13 @@ def main(args):
     s3 = resource("s3")
     obj = s3.Bucket(BUCKET).Object(file)
 
-    logger.debug("Retrieving object s3://%s/%s" % (BUCKET, file))
-    with BytesIO(obj.get()["Body"].read()) as stream:
-        logger.debug("Object retrieved")
-        # Rewind the file
-        stream.seek(0)
-        convert_dataset(stream, obj.key, BUCKET)
+    for dataset in get_datasets(BUCKET):
+        logger.debug("Retrieving object s3://%s/%s" % (BUCKET, dataset))
+        with BytesIO(obj.get()["Body"].read()) as stream:
+            logger.debug("Object retrieved")
+            # Rewind the file
+            stream.seek(0)
+            convert_dataset(stream, obj.key, BUCKET)
 
 
 if __name__ == "__main__":
