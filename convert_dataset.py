@@ -139,4 +139,8 @@ if __name__ == "__main__":
     parser.add_argument("environment", help="'cloud' or 'local'")
     args = parser.parse_args()
     logger.info("args.environment = %s" % args.environment)
-    main(args)
+
+    try:
+        main(args)
+    except MemoryError:
+        logger.error("Exception occurred", exc_info=True)
