@@ -6,8 +6,8 @@ spark = SparkSession.builder.appName("transport").getOrCreate()
 path = "s3://dtpm-transactions/parquet/"
 
 df = spark.read.parquet(path)
-result = df.select("nombresitio", F.date_format('fechahoratrx', 'yyyy-MM-dd').
-                   alias('day')).groupby('nombresitio', 'day').count()
+result = df.select("nombreentidad", "nombresitio", F.date_format('fechahoratrx', 'yyyy-MM-dd').
+                   alias('day')).groupby('nombreentidad', 'nombresitio', 'day').count()
 
 output_path = "s3://dtpm-transactions/result.csv"
 # result.coalesce(1).write.csv(path)
