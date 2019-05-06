@@ -7,6 +7,7 @@ from boto3 import resource
 from memory_profiler import profile
 import logging
 import pandas as pd
+import fastparquet
 
 # Set different levels of logging
 logging.basicConfig(
@@ -32,14 +33,14 @@ def convert_dataset(dataset, file_name, bucket):
     """
     Convert dataset (from stream) to DataFrame and save as .parquet in s3.
     """
-    output_path = "parquet"
-    logger.debug("Unzipping %s" % file_name)
+    output_path = "parquet_data"
+    logger.info("Unzipping %s" % file_name)
     # Decompress file
     try:
         with ZipFile(dataset, mode='r') as zipf:
             for sub_file in zipf.namelist():
 
-                output_dir = "s3://%s/%s/%s/data.parquet" % (
+                output_dir = "s3://%s/%s/%s/data" % (
                     bucket,
                     output_path,
                     build_filename(file_name + sub_file)
@@ -48,12 +49,21 @@ def convert_dataset(dataset, file_name, bucket):
                 logger.debug("Processing subfile %s" % sub_file)
                 df = create_df(zipf.read(sub_file))
 
-                logger.debug("Saving %s" % output_dir)
-                df.to_parquet(output_dir, compression="gzip", engine="fastparquet")
+                logger.info("Saving %s" % output_dir)
+
+                # Writing to read in AWS Athena
+                fastparquet.write(
+                    filename=output_dir,
+                    data=df,
+                    compression="GZIP",
+                    file_scheme='hive',
+                    write_index=False,
+                    object_encoding='utf8',
+                    times='int96')
 
     except BadZipfile:
         # logging.error("Exception occurred", exc_info=True)
-        logging.error("Bad ZipFile")
+        logging.error("Bad ZipFile: %s" % file_name)
     else:
         # Remove compressed file from memory.
         del dataset
