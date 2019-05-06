@@ -101,11 +101,13 @@ def get_datasets(bucket):
     s3 = resource("s3")
     bucket = "dtpm-transactions"
 
+    # Get list of datasets in zip
     zip_files = [obj.key[:8] for obj in s3.Bucket(bucket).objects.all()
                  if bool(re.match(r"^[0-9]*.zip", obj.key))]
 
-    parquet_files = [obj.key[12:20] for obj in s3.Bucket(bucket).objects.all()
-                     if bool(re.match(r"^parquet+", obj.key))]
+    # Get list of datasets in parquet
+    parquet_files = [obj.key[17:25] for obj in s3.Bucket(bucket).objects.all()
+                     if bool(re.match(r"parquet_data+", obj.key))]
 
     # Include the last obj downloaded to download.
     datasets = [parquet_files[-1]] + list(set(zip_files) - set(parquet_files))
