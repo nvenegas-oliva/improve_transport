@@ -110,7 +110,10 @@ def get_datasets(bucket):
                      if bool(re.match(r"parquet_data+", obj.key))]
 
     # Include the last obj downloaded to download.
-    datasets = [parquet_files[-1]] + list(set(zip_files) - set(parquet_files))
+    if parquet_files:
+        datasets = [parquet_files[-1]] + list(set(zip_files) - set(parquet_files))
+    else:
+        datasets = list(set(zip_files))
     datasets = list(map(lambda a: "%s.zip" % a, datasets))
     datasets.sort()
 
