@@ -8,6 +8,8 @@ from memory_profiler import profile
 import logging
 import pandas as pd
 import fastparquet
+import s3fs
+
 
 # Set different levels of logging
 logging.basicConfig(
@@ -33,6 +35,7 @@ def convert_dataset(dataset, file_name, bucket):
     """
     Convert dataset (from stream) to DataFrame and save as .parquet in s3.
     """
+
     output_path = "parquet_data"
     logger.info("Unzipping %s" % file_name)
     # Decompress file
@@ -50,6 +53,8 @@ def convert_dataset(dataset, file_name, bucket):
                 df = create_df(zipf.read(sub_file))
 
                 logger.info("Saving %s" % output_dir)
+                s3 = s3fs.S3FileSystem()
+                myopen = s3.open
 
                 # Writing to read in AWS Athena
                 fastparquet.write(
@@ -58,6 +63,7 @@ def convert_dataset(dataset, file_name, bucket):
                     compression="GZIP",
                     file_scheme='hive',
                     write_index=False,
+                    open_with=myopen,
                     object_encoding='utf8',
                     times='int96')
 
