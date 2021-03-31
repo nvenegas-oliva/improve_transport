@@ -23,7 +23,7 @@ jupyterlab==0.35.4
 jupyterlab-server==0.2.0
 kiwisolver==1.0.1
 llvmlite==0.28.0
-lxml==4.3.3
+lxml==4.6.3
 MarkupSafe==1.1.1
 matplotlib==3.0.3
 memory-profiler==0.55.0
